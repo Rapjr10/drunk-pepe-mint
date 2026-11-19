@@ -159,6 +159,7 @@ const ABI = [{"inputs":[{"internalType":"string","name":"_baseTokenURI","type":"
 
 let readProvider, readContract, provider, signer, contract, account = null;
 let launchTs = 0, nextOpenAt = 0, countdownTimer = null;
+let lastRefreshOk = false;
 // MINT v2: auto-refresh every 10s — the page used to read chain state only
 // once at load, so anyone who opened it before launchTime was set stayed
 // stuck on TBA even after the mint opened.
@@ -229,7 +230,8 @@ async function connectWallet() {
     $("connectBtn").style.display = "none";
     await refresh();
     startAutoRefresh();
-    setStatus("Connected.");
+    if (lastRefreshOk) setStatus("Connected.");
+    else setStatus("Connected — status failed to load, auto-retrying.", true);
   } catch (e) { setStatus("Connect failed: " + (e.reason || e.message), true); }
 }
 
@@ -239,46 +241,59 @@ function setMintBtn(disabled, label) {
 }
 
 async function refresh() {
-  const c = contract || readContract;
+  // MINT v3: reads ALWAYS go through the public RPC (readContract), never
+  // the wallet provider — the wallet's own Robinhood RPC was failing on
+  // phones, leaving the page stuck on its static TBA defaults.
+  const c = readContract || contract;
   if (!c) return;
-  try {
-    const minted = Number(await c.totalMinted());
-    const team = Number(await c.teamMinted());
-    const launch = Number(await c.launchTime());
-    const batch = Number(await c.currentBatch());
-    const nextAt = Number(await c.nextBatchOpenAt());
-    const already = account ? Number(await c.mintedCount(account)) : 0;
-    launchTs = launch;
-    nextOpenAt = nextAt;
-    $("minted").textContent = minted;
-    $("split").textContent = team + " team · " + (minted - team) + " public";
-    if (!launch) {
-      $("launch").textContent = "TBA — not set yet";
-      $("batch").textContent = "not started";
-      $("countdown").textContent = "–";
-      setMintBtn(true, "Mint FREE — opening soon");
-    } else if (Date.now() / 1000 < launch) {
-      $("launch").textContent = fmtUTC(launch);
-      $("batch").textContent = "not started";
-      tickCountdown();
-      setMintBtn(true, "Mint FREE — opens in " + fmtCountdown(launch - Math.floor(Date.now() / 1000)));
-    } else if (minted >= MAX_SUPPLY) {
-      $("launch").textContent = fmtUTC(launch);
-      $("batch").textContent = "10 / 10 — sold out";
-      $("countdown").textContent = "all batches open";
-      setMintBtn(true, "Sold out");
-    } else {
-      $("launch").textContent = fmtUTC(launch);
-      $("batch").textContent = "Batch " + (batch + 1) + " / 10 open";
-      tickCountdown();
-      if (already >= 1) {
-        setMintBtn(true, "Already minted (1/wallet)");
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const minted = Number(await c.totalMinted());
+      const team = Number(await c.teamMinted());
+      const launch = Number(await c.launchTime());
+      const batch = Number(await c.currentBatch());
+      const nextAt = Number(await c.nextBatchOpenAt());
+      const already = account ? Number(await c.mintedCount(account)) : 0;
+      launchTs = launch;
+      nextOpenAt = nextAt;
+      $("minted").textContent = minted;
+      $("split").textContent = team + " team · " + (minted - team) + " public";
+      if (!launch) {
+        $("launch").textContent = "TBA — not set yet";
+        $("batch").textContent = "not started";
+        $("countdown").textContent = "–";
+        setMintBtn(true, "Mint FREE — opening soon");
+      } else if (Date.now() / 1000 < launch) {
+        $("launch").textContent = fmtUTC(launch);
+        $("batch").textContent = "not started";
+        tickCountdown();
+        setMintBtn(true, "Mint FREE — opens in " + fmtCountdown(launch - Math.floor(Date.now() / 1000)));
+      } else if (minted >= MAX_SUPPLY) {
+        $("launch").textContent = fmtUTC(launch);
+        $("batch").textContent = "10 / 10 — sold out";
+        $("countdown").textContent = "all batches open";
+        setMintBtn(true, "Sold out");
       } else {
-        setMintBtn(false, "Mint FREE");
+        $("launch").textContent = fmtUTC(launch);
+        $("batch").textContent = "Batch " + (batch + 1) + " / 10 open";
+        tickCountdown();
+        if (already >= 1) {
+          setMintBtn(true, "Already minted (1/wallet)");
+        } else {
+          setMintBtn(false, "Mint FREE");
+        }
       }
+      if (!countdownTimer) countdownTimer = setInterval(tickCountdown, 1000);
+      lastRefreshOk = true;
+      return;
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 1500));
     }
-    if (!countdownTimer) countdownTimer = setInterval(tickCountdown, 1000);
-  } catch (e) { setStatus("Read failed — network busy, retrying: " + (e.reason || e.message), true); }
+  }
+  lastRefreshOk = false;
+  setStatus("Read failed — network busy, retrying: " + (lastErr.reason || lastErr.message), true);
 }
 
 async function mint() {

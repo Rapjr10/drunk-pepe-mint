@@ -334,12 +334,39 @@ async function mint() {
   await refresh(); // re-read chain state — a page loaded pre-launch must not stay stale
   if (!launchTs) { setStatus("Mint hasn't opened yet — launch time is still TBA.", true); return; }
   try {
-    setStatus("Sending transaction… confirm in your wallet.");
+    setStatus("Preparing transaction…");
     setMintBtn(true, "Mint FREE — sending…");
-    const tx = await contract.mint(); // no value sent — mint is free
-    setStatus("Waiting for confirmation… " + tx.hash);
-    const receipt = await tx.wait();
+    // MINT v5: build + broadcast via the public RPC, wallet only SIGNS.
+    // The wallet's own Robinhood node errors on eth_blockNumber (-32603),
+    // so it must never be used for chain reads or sending.
+    const rp = readProvider || provider;
     const iface = new ethers.Interface(ABI);
+    const data = iface.encodeFunctionData("mint", []);
+    const [nonce, gasPrice, block, gasEst] = await Promise.all([
+      rp.getTransactionCount(account),
+      rp.getGasPrice(),
+      rp.getBlock("latest"),
+      rp.estimateGas({ to: CONTRACT_ADDRESS, from: account, data })
+    ]);
+    // Robinhood quirk: eth_gasPrice sits BELOW the block base fee — a legacy
+    // tx priced at eth_gasPrice never lands. Price above the base fee.
+    const baseFee = block.baseFeePerGas || 0n;
+    const price = gasPrice > (baseFee * 3n) / 2n ? gasPrice : (baseFee * 3n) / 2n;
+    const tx = {
+      to: CONTRACT_ADDRESS,
+      data,
+      value: 0n,
+      chainId: CHAIN_ID,
+      nonce,
+      gasLimit: (gasEst * 12n) / 10n,
+      gasPrice: price
+    };
+    setStatus("Confirm in your wallet — it only signs, no network needed.");
+    const signed = await signer.signTransaction(tx);
+    setStatus("Broadcasting…");
+    const sent = await rp.broadcastTransaction(signed);
+    setStatus("Waiting for confirmation… " + sent.hash);
+    const receipt = await sent.wait();
     let tokenId = null;
     for (const log of receipt.logs) {
       try {
@@ -359,7 +386,7 @@ async function mint() {
 }
 
 async function showReveal(tokenId) {
-  const c = contract || readContract;
+  const c = readContract || contract;
   try {
     const uri = await c.tokenURI(tokenId);
     const meta = await (await fetch(uri)).json();

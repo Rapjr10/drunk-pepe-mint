@@ -159,6 +159,15 @@ const ABI = [{"inputs":[{"internalType":"string","name":"_baseTokenURI","type":"
 
 let readProvider, readContract, provider, signer, contract, account = null;
 let launchTs = 0, nextOpenAt = 0, countdownTimer = null;
+// MINT v2: auto-refresh every 10s — the page used to read chain state only
+// once at load, so anyone who opened it before launchTime was set stayed
+// stuck on TBA even after the mint opened.
+let refreshTimer = null;
+function startAutoRefresh() {
+  if (refreshTimer) return;
+  refreshTimer = setInterval(() => { refresh(); }, 10000);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 
 const $ = (id) => document.getElementById(id);
 function setStatus(msg, isErr) {
@@ -219,6 +228,7 @@ async function connectWallet() {
     $("network").textContent = "Robinhood Chain (4663)";
     $("connectBtn").style.display = "none";
     await refresh();
+    startAutoRefresh();
     setStatus("Connected.");
   } catch (e) { setStatus("Connect failed: " + (e.reason || e.message), true); }
 }
@@ -273,6 +283,7 @@ async function refresh() {
 
 async function mint() {
   if (!contract) { setStatus("Connect your wallet first.", true); return; }
+  await refresh(); // re-read chain state — a page loaded pre-launch must not stay stale
   if (!launchTs) { setStatus("Mint hasn't opened yet — launch time is still TBA.", true); return; }
   try {
     setStatus("Sending transaction… confirm in your wallet.");
@@ -333,6 +344,7 @@ window.addEventListener("load", async () => {
     readProvider = new ethers.JsonRpcProvider(RPC_URL);
     readContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, readProvider);
     await refresh();
+    startAutoRefresh();
   } catch (e) { setStatus("Could not reach Robinhood Chain — check connection and reload.", true); }
 });
 </script>

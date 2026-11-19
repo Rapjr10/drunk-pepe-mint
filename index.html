@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drunk Pepe by Lj x Muse — Mint</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+<style>
+  :root { --bg:#0c0c10; --card:#16161d; --card2:#101018; --green:#58c93c; --lime:#a8e063;
+          --amber:#f5a623; --red:#e5484d; --text:#f2f2f2; --muted:#9a9aad; --line:#2a2a38; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+         font-family:ui-monospace,Menlo,Consolas,"Courier New",monospace;
+         min-height:100vh; display:flex; flex-direction:column; align-items:center;
+         padding:20px 14px 72px;
+         background-image:repeating-linear-gradient(0deg, transparent 0 3px, rgba(88,201,60,.03) 3px 4px); }
+  .wrap { width:100%; max-width:640px; }
+  .livebar { background:#0f2a08; border:3px solid var(--green); color:var(--lime);
+             padding:12px 14px; text-align:center; font-size:14px; font-weight:700;
+             letter-spacing:1px; margin-bottom:18px; box-shadow:4px 4px 0 #000; }
+  .livebar small { display:block; color:var(--text); font-weight:400; font-size:12px;
+             letter-spacing:0; margin-top:4px; }
+  h1 { font-size:clamp(34px,9vw,52px); letter-spacing:3px; color:var(--green);
+       text-align:center; line-height:1.05; text-shadow:3px 3px 0 #000; }
+  h1 span { color:var(--lime); }
+  .byline { text-align:center; color:var(--amber); font-size:15px; font-weight:700;
+            letter-spacing:2px; margin:6px 0 4px; }
+  .sub { color:var(--muted); text-align:center; margin:4px 0 18px; font-size:14px; line-height:1.5; }
+  .hero { width:100%; border:3px solid var(--line); box-shadow:6px 6px 0 #000;
+          image-rendering:pixelated; display:block; background:var(--card2); }
+  .hero-cap { text-align:center; color:var(--muted); font-size:12px; margin:8px 0 18px; }
+  .hero-cap b { color:var(--lime); }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:18px; }
+  .chip { background:var(--card); border:2px solid var(--line); color:var(--text);
+          padding:8px 12px; font-size:13px; font-weight:700; box-shadow:3px 3px 0 #000; }
+  .chip.g { border-color:var(--green); color:var(--lime); }
+  .chip.a { border-color:var(--amber); color:var(--amber); }
+  .card { background:var(--card); border:3px solid var(--line); box-shadow:6px 6px 0 #000;
+          padding:20px; width:100%; margin-bottom:18px; }
+  .card h2 { font-size:16px; letter-spacing:1px; margin-bottom:12px; color:var(--lime); }
+  .row { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;
+         padding:9px 0; border-bottom:1px dashed var(--line); font-size:15px; }
+  .row:last-child { border-bottom:none; }
+  .row b { color:var(--lime); text-align:right; }
+  .row .dim { color:var(--muted); font-size:12px; display:block; text-align:right; }
+  button { display:block; width:100%; min-height:56px; padding:14px; margin-top:14px;
+           border:3px solid #000; box-shadow:4px 4px 0 #000; font-family:inherit;
+           font-size:18px; font-weight:700; letter-spacing:1px; cursor:pointer;
+           background:var(--green); color:#08130a; }
+  button:active { transform:translate(2px,2px); box-shadow:2px 2px 0 #000; }
+  button:disabled { background:#33333f; color:#888; cursor:not-allowed; box-shadow:3px 3px 0 #000; }
+  button.secondary { background:#26262f; color:var(--text); border:3px solid #3a3a4a; }
+  #status { font-size:13px; color:var(--muted); margin-top:12px; min-height:18px;
+            word-break:break-word; line-height:1.5; }
+  #status.err { color:var(--red); }
+  #reveal { display:none; text-align:center; }
+  #reveal img { width:100%; max-width:420px; image-rendering:pixelated;
+                border:3px solid var(--line); box-shadow:6px 6px 0 #000; margin:10px 0; }
+  #reveal h2 { font-size:18px; margin:6px 0; }
+  .traits { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px; }
+  .trait { background:var(--card2); border:2px solid var(--line); padding:8px 10px;
+           font-size:12px; text-align:left; }
+  .trait small { display:block; color:var(--muted); font-size:10px; text-transform:uppercase; }
+  .trait b { color:var(--lime); }
+  a { color:var(--lime); }
+  .addr { font-size:14px; word-break:break-all; }
+  .linkrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .linkrow a { flex:1; min-width:140px; text-align:center; background:#26262f;
+               border:2px solid #3a3a4a; padding:12px 8px; font-size:14px; font-weight:700;
+               text-decoration:none; box-shadow:3px 3px 0 #000; }
+  .linkrow a:active { transform:translate(2px,2px); box-shadow:1px 1px 0 #000; }
+  .copybtn { min-height:44px; font-size:14px; margin-top:10px; background:#26262f;
+             color:var(--text); border:3px solid #3a3a4a; }
+  input[type=number] { width:100%; padding:14px; margin-top:12px; background:var(--card2);
+    border:2px solid #3a3a4a; color:var(--text); font-family:inherit; font-size:16px; }
+  .foot { color:var(--muted); font-size:12px; text-align:center; margin-top:4px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="livebar">CONTRACT LIVE — LAUNCH TIME TBA
+  <small>Mint hasn't opened yet. Come back when the launch time is announced.</small>
+</div>
+
+<h1>DRUNK <span>PEPE</span></h1>
+<p class="byline">BY LJ × MUSE</p>
+<p class="sub">1,000 pixel-art drunk Pepes on Robinhood Chain. All FREE. Instant reveal. No two Pepes drink alike.</p>
+
+<img class="hero" src="https://rapjr10.github.io/drunk-pepe/images/72.png" alt="Drunk Pepe #72 — Legendary, crowned" onerror="this.style.display='none'">
+<p class="hero-cap">Preview: <b>Drunk Pepe #72</b> — Legendary, crowned. Every Pepe is different.</p>
+
+<div class="chips">
+  <span class="chip g">FREE</span>
+  <span class="chip">MAX 1 / WALLET</span>
+  <span class="chip">10 BATCHES × 100</span>
+  <span class="chip">5 MIN APART</span>
+  <span class="chip a">TRADING LOCKED AT LAUNCH</span>
+  <span class="chip">970 PUBLIC + 30 TEAM</span>
+</div>
+
+<div class="card">
+  <h2>MINT STATUS</h2>
+  <div class="row"><span>Minted</span><b><span id="minted">–</span> / 1,000<span class="dim" id="split">30 team · 0 public</span></b></div>
+  <div class="row"><span>Launch</span><b id="launch">TBA</b></div>
+  <div class="row"><span>Batch</span><b id="batch">–</b></div>
+  <div class="row"><span>Next batch opens in</span><b id="countdown">–</b></div>
+  <div class="row"><span>Your wallet</span><b id="account">not connected</b></div>
+  <div class="row"><span>Network</span><b id="network">Robinhood Chain (4663)</b></div>
+
+  <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+  <button id="mintBtn" onclick="mint()" disabled>Mint FREE — opening soon</button>
+  <div id="status"></div>
+</div>
+
+<div class="card">
+  <h2>CONTRACT</h2>
+  <div class="row"><span>Address</span><b class="addr" id="addrShort">0xB050…B8dd</b></div>
+  <button class="copybtn" onclick="copyAddress()">Copy contract address</button>
+  <div class="linkrow">
+    <a id="explorerLink" href="https://robinhoodchain.blockscout.com/address/0xB05046f237500248DeA26A117A3259F97B3eB8dd" target="_blank" rel="noopener">Explorer ↗</a>
+    <a id="osCollectionLink" href="https://opensea.io/assets/robinhood/0xB05046f237500248DeA26A117A3259F97B3eB8dd" target="_blank" rel="noopener">OpenSea ↗</a>
+  </div>
+</div>
+
+<div class="card" id="reveal">
+  <h2 id="revealName"></h2>
+  <img id="revealImg" alt="Your Drunk Pepe">
+  <div class="traits" id="revealTraits"></div>
+  <p style="margin-top:14px;font-size:13px"><a id="osLink" href="#" target="_blank" rel="noopener">View on OpenSea ↗</a></p>
+</div>
+
+<div class="card">
+  <h2>ALREADY MINTED? CHECK YOUR PEPE</h2>
+  <input type="number" id="lookupId" min="1" max="1000" placeholder="Token ID (1–1000)">
+  <button class="secondary" onclick="lookup()">Reveal Token</button>
+</div>
+
+<p class="foot">Drunk Pepe by Lj x Muse · Robinhood Chain (4663) · All 1,000 FREE (1/wallet) · 10 batches × 100, 5 min apart · Trading locked at launch</p>
+
+</div>
+<script>
+// ================= CONFIG =================
+const CONTRACT_ADDRESS = "0xB05046f237500248DeA26A117A3259F97B3eB8dd";
+const CHAIN_ID = 4663; // Robinhood Chain
+const RPC_URL = "https://rpc.mainnet.chain.robinhood.com";
+const CHAIN_PARAMS = {
+  chainId: "0x" + CHAIN_ID.toString(16),
+  chainName: "Robinhood Chain",
+  nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+  rpcUrls: [RPC_URL],
+  blockExplorerUrls: ["https://robinhoodchain.blockscout.com"],
+};
+const OPENSEA_BASE = "https://opensea.io/assets/robinhood/" + CONTRACT_ADDRESS + "/";
+const BATCH_SIZE = 100, BATCH_COUNT = 10, BATCH_INTERVAL = 300; // seconds
+const MAX_SUPPLY = 1000, TEAM_ALLOCATION = 30;
+// ==========================================
+const ABI = [{"inputs":[{"internalType":"string","name":"_baseTokenURI","type":"string"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"address","name":"owner","type":"address"}],"name":"ERC721IncorrectOwner","type":"error"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ERC721InsufficientApproval","type":"error"},{"inputs":[{"internalType":"address","name":"approver","type":"address"}],"name":"ERC721InvalidApprover","type":"error"},{"inputs":[{"internalType":"address","name":"operator","type":"address"}],"name":"ERC721InvalidOperator","type":"error"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"ERC721InvalidOwner","type":"error"},{"inputs":[{"internalType":"address","name":"receiver","type":"address"}],"name":"ERC721InvalidReceiver","type":"error"},{"inputs":[{"internalType":"address","name":"sender","type":"address"}],"name":"ERC721InvalidSender","type":"error"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ERC721NonexistentToken","type":"error"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"OwnableInvalidOwner","type":"error"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"OwnableUnauthorizedAccount","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"newBaseURI","type":"string"}],"name":"BaseURIUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"launchTime","type":"uint256"}],"name":"LaunchTimeSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"TeamMinted","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"bool","name":"enabled","type":"bool"}],"name":"TradingEnabledUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"BATCH_COUNT","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"BATCH_INTERVAL","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"BATCH_SIZE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MAX_PER_WALLET","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MAX_SUPPLY","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"TEAM_ALLOCATION","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"baseTokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"currentBatch","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"launchTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"mint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"mintedCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"nextBatchOpenAt","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"_baseTokenURI","type":"string"}],"name":"setBaseURI","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_launchTime","type":"uint256"}],"name":"setLaunchTime","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bool","name":"_enabled","type":"bool"}],"name":"setTradingEnabled","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"teamMint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"teamMinted","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalMinted","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"tradingEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+
+let readProvider, readContract, provider, signer, contract, account = null;
+let launchTs = 0, nextOpenAt = 0, countdownTimer = null;
+
+const $ = (id) => document.getElementById(id);
+function setStatus(msg, isErr) {
+  const el = $("status");
+  el.textContent = msg;
+  el.className = isErr ? "err" : "";
+}
+
+function fmtCountdown(secs) {
+  if (secs <= 0) return "open now";
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return m + ":" + String(s).padStart(2, "0");
+}
+
+function fmtUTC(ts) {
+  return new Date(ts * 1000).toUTCString().replace(" GMT", " UTC");
+}
+
+function tickCountdown() {
+  const now = Math.floor(Date.now() / 1000);
+  if (launchTs && now < launchTs) {
+    $("countdown").textContent = fmtCountdown(launchTs - now);
+    $("mintBtn").textContent = "Mint FREE — opens in " + fmtCountdown(launchTs - now);
+    if (launchTs - now <= 0) refresh();
+    return;
+  }
+  if (!nextOpenAt) { $("countdown").textContent = "–"; return; }
+  const secs = Math.max(0, nextOpenAt - now);
+  $("countdown").textContent = secs === 0 ? "all batches open" : fmtCountdown(secs);
+  if (secs === 0 && contract) refresh();
+}
+
+async function ensureChain() {
+  const net = await provider.getNetwork();
+  if (Number(net.chainId) === CHAIN_ID) return;
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain",
+      params: [{ chainId: CHAIN_PARAMS.chainId }] });
+  } catch (e) {
+    if (e.code === 4902) {
+      await window.ethereum.request({ method: "wallet_addEthereumChain", params: [CHAIN_PARAMS] });
+    } else throw e;
+  }
+  provider = new ethers.BrowserProvider(window.ethereum);
+  signer = await provider.getSigner();
+}
+
+async function connectWallet() {
+  if (!window.ethereum) { setStatus("No wallet found. Open this page in a wallet browser (e.g. OKX / MetaMask).", true); return; }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    await ensureChain();
+    signer = await provider.getSigner();
+    account = await signer.getAddress();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    $("account").textContent = account.slice(0, 6) + "…" + account.slice(-4);
+    $("network").textContent = "Robinhood Chain (4663)";
+    $("connectBtn").style.display = "none";
+    await refresh();
+    setStatus("Connected.");
+  } catch (e) { setStatus("Connect failed: " + (e.reason || e.message), true); }
+}
+
+function setMintBtn(disabled, label) {
+  $("mintBtn").disabled = disabled;
+  $("mintBtn").textContent = label;
+}
+
+async function refresh() {
+  const c = contract || readContract;
+  if (!c) return;
+  try {
+    const minted = Number(await c.totalMinted());
+    const team = Number(await c.teamMinted());
+    const launch = Number(await c.launchTime());
+    const batch = Number(await c.currentBatch());
+    const nextAt = Number(await c.nextBatchOpenAt());
+    const already = account ? Number(await c.mintedCount(account)) : 0;
+    launchTs = launch;
+    nextOpenAt = nextAt;
+    $("minted").textContent = minted;
+    $("split").textContent = team + " team · " + (minted - team) + " public";
+    if (!launch) {
+      $("launch").textContent = "TBA — not set yet";
+      $("batch").textContent = "not started";
+      $("countdown").textContent = "–";
+      setMintBtn(true, "Mint FREE — opening soon");
+    } else if (Date.now() / 1000 < launch) {
+      $("launch").textContent = fmtUTC(launch);
+      $("batch").textContent = "not started";
+      tickCountdown();
+      setMintBtn(true, "Mint FREE — opens in " + fmtCountdown(launch - Math.floor(Date.now() / 1000)));
+    } else if (minted >= MAX_SUPPLY) {
+      $("launch").textContent = fmtUTC(launch);
+      $("batch").textContent = "10 / 10 — sold out";
+      $("countdown").textContent = "all batches open";
+      setMintBtn(true, "Sold out");
+    } else {
+      $("launch").textContent = fmtUTC(launch);
+      $("batch").textContent = "Batch " + (batch + 1) + " / 10 open";
+      tickCountdown();
+      if (already >= 1) {
+        setMintBtn(true, "Already minted (1/wallet)");
+      } else {
+        setMintBtn(false, "Mint FREE");
+      }
+    }
+    if (!countdownTimer) countdownTimer = setInterval(tickCountdown, 1000);
+  } catch (e) { setStatus("Read failed — network busy, retrying: " + (e.reason || e.message), true); }
+}
+
+async function mint() {
+  if (!contract) { setStatus("Connect your wallet first.", true); return; }
+  if (!launchTs) { setStatus("Mint hasn't opened yet — launch time is still TBA.", true); return; }
+  try {
+    setStatus("Sending transaction… confirm in your wallet.");
+    setMintBtn(true, "Mint FREE — sending…");
+    const tx = await contract.mint(); // no value sent — mint is free
+    setStatus("Waiting for confirmation… " + tx.hash);
+    const receipt = await tx.wait();
+    const iface = new ethers.Interface(ABI);
+    let tokenId = null;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = iface.parseLog(log);
+        if (parsed && parsed.name === "Transfer" && parsed.args[0] === ethers.ZeroAddress) {
+          tokenId = Number(parsed.args[2]);
+        }
+      } catch (_) {}
+    }
+    await refresh();
+    if (tokenId) { await showReveal(tokenId); setStatus("Minted! Token #" + tokenId); }
+    else setStatus("Minted! (could not read token ID — use lookup below)");
+  } catch (e) {
+    setStatus("Mint failed: " + (e.reason || e.message), true);
+    await refresh();
+  }
+}
+
+async function showReveal(tokenId) {
+  const c = contract || readContract;
+  try {
+    const uri = await c.tokenURI(tokenId);
+    const meta = await (await fetch(uri)).json();
+    $("revealName").textContent = meta.name || ("Drunk Pepe #" + tokenId);
+    $("revealImg").src = meta.image;
+    $("revealTraits").innerHTML = (meta.attributes || []).map(a =>
+      `<div class="trait"><small>${a.trait_type}</small><b>${a.value}</b></div>`).join("");
+    $("osLink").href = OPENSEA_BASE + tokenId;
+    $("reveal").style.display = "block";
+    $("reveal").scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch (e) { setStatus("Reveal failed (metadata not reachable yet): " + e.message, true); }
+}
+
+async function lookup() {
+  const id = Number($("lookupId").value);
+  if (!id || id < 1 || id > MAX_SUPPLY) { setStatus("Enter a token ID 1–1000.", true); return; }
+  await showReveal(id);
+}
+
+function copyAddress() {
+  const done = () => setStatus("Contract address copied.");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(CONTRACT_ADDRESS).then(done, () => setStatus(CONTRACT_ADDRESS));
+  } else { setStatus(CONTRACT_ADDRESS); }
+}
+
+// Public read-only state on load — no wallet needed to see mint status.
+window.addEventListener("load", async () => {
+  try {
+    readProvider = new ethers.JsonRpcProvider(RPC_URL);
+    readContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, readProvider);
+    await refresh();
+  } catch (e) { setStatus("Could not reach Robinhood Chain — check connection and reload.", true); }
+});
+</script>
+</body>
+</html>

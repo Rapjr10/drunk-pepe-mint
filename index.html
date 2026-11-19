@@ -143,12 +143,44 @@
 // ================= CONFIG =================
 const CONTRACT_ADDRESS = "0xB05046f237500248DeA26A117A3259F97B3eB8dd";
 const CHAIN_ID = 4663; // Robinhood Chain
-const RPC_URL = "https://rpc.mainnet.chain.robinhood.com";
+// MINT v4: the official RPC is unreachable from some phones
+// ("Failed to fetch"), so reads fail over across public RPCs.
+const RPC_URLS = [
+  "https://rpc.mainnet.chain.robinhood.com",
+  "https://robinhood-rpc.publicnode.com",
+  "https://robinhood.daybreak-rpc.network"
+];
+const RPC_URL = RPC_URLS[0];
+let rpcIdx = 0;
+function makeReadProvider(url) {
+  const req = new ethers.FetchRequest(url);
+  req.timeout = 15000;
+  return new ethers.JsonRpcProvider(req);
+}
+function setReadRpc(idx) {
+  rpcIdx = ((idx % RPC_URLS.length) + RPC_URLS.length) % RPC_URLS.length;
+  readProvider = makeReadProvider(RPC_URLS[rpcIdx]);
+  readContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, readProvider);
+}
+async function pickWorkingRpc() {
+  for (let i = 0; i < RPC_URLS.length; i++) {
+    try {
+      const p = makeReadProvider(RPC_URLS[i]);
+      const net = await Promise.race([
+        p.getNetwork(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000))
+      ]);
+      if (Number(net.chainId) === CHAIN_ID) { setReadRpc(i); return true; }
+    } catch (_) {}
+  }
+  setReadRpc(0);
+  return false;
+}
 const CHAIN_PARAMS = {
   chainId: "0x" + CHAIN_ID.toString(16),
   chainName: "Robinhood Chain",
   nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-  rpcUrls: [RPC_URL],
+  rpcUrls: RPC_URLS,
   blockExplorerUrls: ["https://robinhoodchain.blockscout.com"],
 };
 const OPENSEA_BASE = "https://opensea.io/assets/robinhood/" + CONTRACT_ADDRESS + "/";
@@ -241,13 +273,13 @@ function setMintBtn(disabled, label) {
 }
 
 async function refresh() {
-  // MINT v3: reads ALWAYS go through the public RPC (readContract), never
-  // the wallet provider — the wallet's own Robinhood RPC was failing on
-  // phones, leaving the page stuck on its static TBA defaults.
-  const c = readContract || contract;
-  if (!c) return;
+  // MINT v4: reads go through the public RPC list with failover — the
+  // official RPC is unreachable from some phones ("Failed to fetch"), so
+  // rotate to PublicNode / Daybreak when a read fails.
+  if (!readContract && !contract) return;
   let lastErr = null;
   for (let attempt = 0; attempt < 3; attempt++) {
+    const c = readContract || contract;
     try {
       const minted = Number(await c.totalMinted());
       const team = Number(await c.teamMinted());
@@ -289,6 +321,7 @@ async function refresh() {
       return;
     } catch (e) {
       lastErr = e;
+      if (readContract) setReadRpc(rpcIdx + 1); // rotate to the next RPC
       await new Promise(r => setTimeout(r, 1500));
     }
   }
@@ -356,8 +389,7 @@ function copyAddress() {
 // Public read-only state on load — no wallet needed to see mint status.
 window.addEventListener("load", async () => {
   try {
-    readProvider = new ethers.JsonRpcProvider(RPC_URL);
-    readContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, readProvider);
+    await pickWorkingRpc();
     await refresh();
     startAutoRefresh();
   } catch (e) { setStatus("Could not reach Robinhood Chain — check connection and reload.", true); }

@@ -342,14 +342,16 @@ async function mint() {
     const rp = readProvider || provider;
     const iface = new ethers.Interface(ABI);
     const data = iface.encodeFunctionData("mint", []);
-    const [nonce, gasPrice, block, gasEst] = await Promise.all([
+    const [nonce, feeData, block, gasEst] = await Promise.all([
       rp.getTransactionCount(account),
-      rp.getGasPrice(),
+      rp.getFeeData(),
       rp.getBlock("latest"),
       rp.estimateGas({ to: CONTRACT_ADDRESS, from: account, data })
     ]);
     // Robinhood quirk: eth_gasPrice sits BELOW the block base fee — a legacy
     // tx priced at eth_gasPrice never lands. Price above the base fee.
+    // (ethers v6 has no provider.getGasPrice() — gasPrice comes from getFeeData.)
+    const gasPrice = feeData.gasPrice ?? 0n;
     const baseFee = block.baseFeePerGas || 0n;
     const price = gasPrice > (baseFee * 3n) / 2n ? gasPrice : (baseFee * 3n) / 2n;
     const tx = {
